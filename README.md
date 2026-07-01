@@ -47,11 +47,21 @@ Reverse navigation underlines the full test.step() label string and activates fr
   "playwrightGherkinStepNavigator.specFileGlobs": ["**/*.spec.ts", "**/*.test.ts", "**/*.spec.js", "**/*.test.js"],
   "playwrightGherkinStepNavigator.featureFileGlobs": ["**/*.feature"],
   "playwrightGherkinStepNavigator.excludeGlobs": ["**/node_modules/**", "**/dist/**", "**/out/**", "**/playwright-report/**", "**/test-results/**"],
-  "playwrightGherkinStepNavigator.includeKeywordInMatch": true
+  "playwrightGherkinStepNavigator.includeKeywordInMatch": true,
+  "playwrightGherkinStepNavigator.enableDiagnostics": true,
+  "playwrightGherkinStepNavigator.enableCodeLens": false
 }
 ```
 
 When includeKeywordInMatch is false, the leading Gherkin keyword is ignored during matching.
+
+## CodeLens
+
+Feature steps and Playwright `test.step()` labels show inline match counts such as `No Playwright matches`, `1 Playwright match`, or `3 feature matches`. Click a CodeLens item to navigate to the match list or matching step. Disable this with `playwrightGherkinStepNavigator.enableCodeLens`.
+
+## Diagnostics
+
+Feature steps with no matching Playwright `test.step()` are shown as warnings in `.feature` files. Disable this with `playwrightGherkinStepNavigator.enableDiagnostics` if you only want navigation.
 
 ## Development
 

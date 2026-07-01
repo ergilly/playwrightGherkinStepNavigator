@@ -16,6 +16,8 @@ export interface NavigatorConfig {
   featureFileGlobs: string[];
   excludeGlobs: string[];
   includeKeywordInMatch: boolean;
+  enableDiagnostics: boolean;
+  enableCodeLens: boolean;
 }
 
 export interface ParsedFeatureStep {
@@ -39,9 +41,14 @@ let playwrightStepIndex: StepIndexEntry[] = [];
 let featureStepIndex: StepIndexEntry[] = [];
 let rebuildTimer: NodeJS.Timeout | undefined;
 let indexReady: Promise<void> | undefined;
+let diagnosticCollection: vscode.DiagnosticCollection | undefined;
+let codeLensRefreshEmitter: vscode.EventEmitter<void> | undefined;
 let fileWatchers: vscode.FileSystemWatcher[] = [];
 
 export function activate(context: vscode.ExtensionContext): void {
+  diagnosticCollection = vscode.languages.createDiagnosticCollection('playwright-gherkin-step-navigator');
+  codeLensRefreshEmitter = new vscode.EventEmitter<void>();
+
   const featureDefinitionProvider = vscode.languages.registerDefinitionProvider(
     { scheme: 'file', language: 'feature', pattern: '**/*.feature' },
     {
@@ -128,6 +135,21 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   );
 
+  const codeLensProvider = createStepCodeLensProvider();
+  const featureCodeLensProvider = vscode.languages.registerCodeLensProvider(
+    { scheme: 'file', language: 'feature', pattern: '**/*.feature' },
+    codeLensProvider
+  );
+  const playwrightCodeLensProvider = vscode.languages.registerCodeLensProvider(
+    [
+      { scheme: 'file', pattern: '**/*.spec.ts' },
+      { scheme: 'file', pattern: '**/*.test.ts' },
+      { scheme: 'file', pattern: '**/*.spec.js' },
+      { scheme: 'file', pattern: '**/*.test.js' }
+    ],
+    codeLensProvider
+  );
+
   const navigateCommand = vscode.commands.registerCommand(
     'playwrightGherkinStepNavigator.goToMatch',
     async (args: NavigateCommandArgs) => navigateToMatch(args)
@@ -138,7 +160,11 @@ export function activate(context: vscode.ExtensionContext): void {
     playwrightDefinitionProvider,
     featureDocumentLinkProvider,
     playwrightDocumentLinkProvider,
-    navigateCommand
+    featureCodeLensProvider,
+    playwrightCodeLensProvider,
+    codeLensRefreshEmitter,
+    navigateCommand,
+    diagnosticCollection
   );
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration((event) => {
     if (event.affectsConfiguration(CONFIG_SECTION)) {
@@ -148,12 +174,39 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   }));
 
+  context.subscriptions.push(vscode.workspace.onDidOpenTextDocument((document) => {
+    if (isFeatureUri(document.uri)) {
+      void refreshFeatureDiagnostics(document);
+    }
+  }));
+
+  context.subscriptions.push(vscode.workspace.onDidChangeTextDocument((event) => {
+    if (isFeatureUri(event.document.uri)) {
+      void refreshFeatureDiagnostics(event.document);
+      codeLensRefreshEmitter?.fire();
+      return;
+    }
+
+    if (isPlaywrightSpecUri(event.document.uri)) {
+      codeLensRefreshEmitter?.fire();
+    }
+  }));
+
+  context.subscriptions.push(vscode.workspace.onDidCloseTextDocument((document) => {
+    if (isFeatureUri(document.uri)) {
+      diagnosticCollection?.delete(document.uri);
+    }
+  }));
+
   registerFileWatchers(context);
   indexReady = buildIndex();
+  void indexReady.then(() => refreshAllFeatureDiagnostics());
 }
 
 export function deactivate(): void {
   disposeWatchers();
+  diagnosticCollection?.dispose();
+  codeLensRefreshEmitter?.dispose();
 }
 
 export async function buildIndex(): Promise<void> {
@@ -166,11 +219,13 @@ export async function buildIndex(): Promise<void> {
 
   playwrightStepIndex = playwrightEntries;
   featureStepIndex = featureEntries;
+  codeLensRefreshEmitter?.fire();
 }
 
 export async function rebuildIndex(): Promise<void> {
   indexReady = buildIndex();
   await indexReady;
+  await refreshAllFeatureDiagnostics();
 }
 
 async function ensureIndexReady(): Promise<void> {
@@ -359,7 +414,9 @@ function getNavigatorConfig(): NavigatorConfig {
     specFileGlobs: configuration.get<string[]>('specFileGlobs', ['**/*.spec.ts', '**/*.test.ts', '**/*.spec.js', '**/*.test.js']),
     featureFileGlobs: configuration.get<string[]>('featureFileGlobs', ['**/*.feature']),
     excludeGlobs: configuration.get<string[]>('excludeGlobs', ['**/node_modules/**', '**/dist/**', '**/out/**', '**/playwright-report/**', '**/test-results/**']),
-    includeKeywordInMatch: configuration.get<boolean>('includeKeywordInMatch', true)
+    includeKeywordInMatch: configuration.get<boolean>('includeKeywordInMatch', true),
+    enableDiagnostics: configuration.get<boolean>('enableDiagnostics', true),
+    enableCodeLens: configuration.get<boolean>('enableCodeLens', false)
   };
 }
 
@@ -403,6 +460,114 @@ function disposeWatchers(): void {
 
 function toLocation(entry: StepIndexEntry): vscode.Location {
   return new vscode.Location(entry.uri, entry.range);
+}
+
+async function refreshFeatureDiagnostics(document: vscode.TextDocument): Promise<void> {
+  await ensureIndexReady();
+  updateFeatureDiagnostics(document);
+}
+
+async function refreshAllFeatureDiagnostics(): Promise<void> {
+  const config = getNavigatorConfig();
+
+  if (!config.enableDiagnostics) {
+    diagnosticCollection?.clear();
+    return;
+  }
+
+  for (const document of vscode.workspace.textDocuments) {
+    if (isFeatureUri(document.uri)) {
+      updateFeatureDiagnostics(document, config);
+    }
+  }
+}
+
+function updateFeatureDiagnostics(document: vscode.TextDocument, config = getNavigatorConfig()): void {
+  if (!diagnosticCollection || !isFeatureUri(document.uri)) {
+    return;
+  }
+
+  if (!config.enableDiagnostics) {
+    diagnosticCollection.delete(document.uri);
+    return;
+  }
+
+  const diagnostics = extractFeatureSteps(document.getText(), document.uri, config)
+    .filter((step) => findMatchingPlaywrightSteps(step.label, config).length === 0)
+    .map((step) => {
+      const diagnostic = new vscode.Diagnostic(
+        step.range,
+        'No matching Playwright test.step() implementation found.',
+        vscode.DiagnosticSeverity.Warning
+      );
+
+      diagnostic.source = 'Playwright Gherkin Step Navigator';
+      diagnostic.code = 'undefined-playwright-step';
+
+      return diagnostic;
+    });
+
+  diagnosticCollection.set(document.uri, diagnostics);
+}
+
+function createStepCodeLensProvider(): vscode.CodeLensProvider {
+  return {
+    onDidChangeCodeLenses: codeLensRefreshEmitter?.event,
+    provideCodeLenses(document) {
+      const config = getNavigatorConfig();
+
+      if (!config.enableCodeLens) {
+        return [];
+      }
+
+      if (isFeatureUri(document.uri)) {
+        return createFeatureStepCodeLenses(document, config);
+      }
+
+      if (isPlaywrightSpecUri(document.uri)) {
+        return createPlaywrightStepCodeLenses(document, config);
+      }
+
+      return [];
+    }
+  };
+}
+
+function createFeatureStepCodeLenses(document: vscode.TextDocument, config: NavigatorConfig): vscode.CodeLens[] {
+  return extractFeatureSteps(document.getText(), document.uri, config).map((step) => {
+    const count = findMatchingPlaywrightSteps(step.label, config).length;
+
+    return createMatchCountCodeLens(step, count, 'playwright');
+  });
+}
+
+function createPlaywrightStepCodeLenses(document: vscode.TextDocument, config: NavigatorConfig): vscode.CodeLens[] {
+  return extractPlaywrightSteps(document.getText(), document.uri, config).map((step) => {
+    const count = findMatchingFeatureSteps(step.label, config).length;
+
+    return createMatchCountCodeLens(step, count, 'feature');
+  });
+}
+
+function createMatchCountCodeLens(
+  step: StepIndexEntry,
+  count: number,
+  direction: NavigateCommandArgs['direction']
+): vscode.CodeLens {
+  const targetLabel = direction === 'playwright' ? 'Playwright' : 'feature';
+  const title = count === 0
+    ? 'No ' + targetLabel + ' matches'
+    : count + ' ' + targetLabel + ' ' + (count === 1 ? 'match' : 'matches');
+
+  return new vscode.CodeLens(step.range, {
+    title,
+    command: 'playwrightGherkinStepNavigator.goToMatch',
+    arguments: [{
+      label: step.label,
+      sourceUri: step.uri.toString(),
+      direction
+    } satisfies NavigateCommandArgs]
+  });
 }
 
 function createFeatureStepDocumentLinks(document: vscode.TextDocument, config: NavigatorConfig): vscode.DocumentLink[] {

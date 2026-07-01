@@ -72,6 +72,16 @@
             "type": "string"
           },
           "description": "Workspace glob patterns for Gherkin feature files to index for reverse navigation."
+        },
+        "playwrightGherkinStepNavigator.enableDiagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show warnings in feature files when a Gherkin step has no matching Playwright test.step() implementation."
+        },
+        "playwrightGherkinStepNavigator.enableCodeLens": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show CodeLens match counts above feature steps and Playwright test.step() labels."
         }
       }
     },
@@ -94,5 +104,13 @@
     "@types/vscode": "^1.89.0",
     "@vscode/vsce": "^2.15.0",
     "typescript": "^5.4.5"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ergilly/playwrightGherkinStepNavigator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ergilly/playwrightGherkinStepNavigator/issues"
+  },
+  "homepage": "https://github.com/ergilly/playwrightGherkinStepNavigator#readme"
 }
