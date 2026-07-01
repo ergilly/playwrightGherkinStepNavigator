@@ -1,0 +1,98 @@
+{
+  "name": "playwright-gherkin-step-navigator",
+  "displayName": "Playwright Gherkin Step Navigator",
+  "description": "Ctrl+click from Gherkin feature steps to matching Playwright test.step() calls.",
+  "version": "0.0.3",
+  "publisher": "ergilly",
+  "engines": {
+    "vscode": "^1.89.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:feature",
+    "workspaceContains:**/*.feature"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "feature",
+        "aliases": [
+          "Gherkin",
+          "Feature"
+        ],
+        "extensions": [
+          ".feature"
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "Playwright Gherkin Step Navigator",
+      "properties": {
+        "playwrightGherkinStepNavigator.specFileGlobs": {
+          "type": "array",
+          "default": [
+            "**/*.spec.ts",
+            "**/*.test.ts",
+            "**/*.spec.js",
+            "**/*.test.js"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Workspace glob patterns for Playwright spec files to index."
+        },
+        "playwrightGherkinStepNavigator.excludeGlobs": {
+          "type": "array",
+          "default": [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/out/**",
+            "**/playwright-report/**",
+            "**/test-results/**"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Workspace glob patterns to exclude from indexing."
+        },
+        "playwrightGherkinStepNavigator.includeKeywordInMatch": {
+          "type": "boolean",
+          "default": true,
+          "description": "When enabled, Gherkin keywords such as Given, When and Then are included in the matched text."
+        },
+        "playwrightGherkinStepNavigator.featureFileGlobs": {
+          "type": "array",
+          "default": [
+            "**/*.feature"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Workspace glob patterns for Gherkin feature files to index for reverse navigation."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "playwrightGherkinStepNavigator.goToMatch",
+        "title": "Playwright Gherkin: Go to Matching Step"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/vscode": "^1.89.0",
+    "@vscode/vsce": "^2.15.0",
+    "typescript": "^5.4.5"
+  }
+}
