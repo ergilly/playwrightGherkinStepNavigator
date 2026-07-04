@@ -1,0 +1,28 @@
+{
+  "playwrightGherkinStepNavigator.specFileGlobs": [
+    "tests/**/*.spec.ts",
+    "tests/**/*.test.ts"
+  ],
+  "playwrightGherkinStepNavigator.featureFileGlobs": [
+    "features/**/*.feature"
+  ],
+  "playwrightGherkinStepNavigator.pageObjectFileGlobs": [
+    "pages/**/*.ts",
+    "steps/**/*.ts"
+  ],
+  "playwrightGherkinStepNavigator.excludeGlobs": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/playwright-report/**",
+    "**/test-results/**",
+    "**/excluded/**"
+  ],
+  "playwrightGherkinStepNavigator.includeKeywordInMatch": false,
+  "playwrightGherkinStepNavigator.enableDiagnostics": true,
+  "playwrightGherkinStepNavigator.enableCodeLens": true,
+  "playwrightGherkinStepNavigator.enableFuzzyMatching": true,
+  "playwrightGherkinStepNavigator.fuzzyMatchThreshold": 0.82,
+  "playwrightGherkinStepNavigator.enableRegexMatching": true,
+  "playwrightGherkinStepNavigator.enablePlaceholderMatching": true,
+  "playwrightGherkinStepNavigator.enableDebugLogging": true
+}

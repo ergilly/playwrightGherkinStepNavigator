@@ -2,7 +2,7 @@
   "name": "playwright-gherkin-step-navigator",
   "displayName": "Playwright Gherkin Step Navigator",
   "description": "Ctrl+click from Gherkin feature steps to matching Playwright test.step() calls.",
-  "version": "0.0.3",
+  "version": "0.0.1",
   "publisher": "ergilly",
   "engines": {
     "vscode": "^1.89.0"
@@ -60,8 +60,9 @@
         },
         "playwrightGherkinStepNavigator.includeKeywordInMatch": {
           "type": "boolean",
-          "default": true,
-          "description": "When enabled, Gherkin keywords such as Given, When and Then are included in the matched text."
+          "default": false,
+          "deprecationMessage": "BDD keywords are now always ignored when matching steps.",
+          "description": "Deprecated. BDD keywords such as Given, When, Then, And and But are always ignored during matching."
         },
         "playwrightGherkinStepNavigator.featureFileGlobs": {
           "type": "array",
@@ -82,6 +83,46 @@
           "type": "boolean",
           "default": false,
           "description": "Show CodeLens match counts above feature steps and Playwright test.step() labels."
+        },
+        "playwrightGherkinStepNavigator.enableFuzzyMatching": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow near matches when exact, regex, or placeholder matching does not find a result."
+        },
+        "playwrightGherkinStepNavigator.fuzzyMatchThreshold": {
+          "type": "number",
+          "default": 0.82,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum similarity score for fuzzy step matches."
+        },
+        "playwrightGherkinStepNavigator.enableRegexMatching": {
+          "type": "boolean",
+          "default": true,
+          "description": "Treat Playwright step labels written as /pattern/ or regex:pattern as regular expressions."
+        },
+        "playwrightGherkinStepNavigator.enablePlaceholderMatching": {
+          "type": "boolean",
+          "default": true,
+          "description": "Treat placeholders such as {username}, <username>, and :username in Playwright step labels as variable text."
+        },
+        "playwrightGherkinStepNavigator.pageObjectFileGlobs": {
+          "type": "array",
+          "default": [
+            "**/pages/**/*.ts",
+            "**/page-objects/**/*.ts",
+            "**/*.page.ts",
+            "**/*.steps.ts"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Workspace glob patterns for page-object and reusable step files containing test.step() calls."
+        },
+        "playwrightGherkinStepNavigator.enableDebugLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Write indexing and matching details to the Playwright Gherkin Step Navigator output channel."
         }
       }
     },
@@ -89,20 +130,85 @@
       {
         "command": "playwrightGherkinStepNavigator.goToMatch",
         "title": "Playwright Gherkin: Go to Matching Step"
+      },
+      {
+        "command": "playwrightGherkinStepNavigator.goToPlaywrightStep",
+        "title": "Playwright Gherkin: Go to Playwright Step"
+      },
+      {
+        "command": "playwrightGherkinStepNavigator.goToFeatureStep",
+        "title": "Playwright Gherkin: Go to Feature Step"
+      },
+      {
+        "command": "playwrightGherkinStepNavigator.showStepCatalogue",
+        "title": "Playwright Gherkin: Show Step Catalogue"
+      },
+      {
+        "command": "playwrightGherkinStepNavigator.showOutput",
+        "title": "Playwright Gherkin: Show Output"
+      },
+      {
+        "command": "playwrightGherkinStepNavigator.createStepImplementation",
+        "title": "Playwright Gherkin: Create test.step() Implementation"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "playwrightGherkinStepNavigator.stepCatalogue",
+          "name": "Playwright Steps"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "playwrightGherkinStepNavigator.goToPlaywrightStep",
+          "when": "resourceExtname == .feature",
+          "group": "navigation"
+        },
+        {
+          "command": "playwrightGherkinStepNavigator.goToFeatureStep",
+          "when": "resourceExtname == .ts || resourceExtname == .js",
+          "group": "navigation"
+        },
+        {
+          "command": "playwrightGherkinStepNavigator.createStepImplementation",
+          "when": "resourceExtname == .feature",
+          "group": "1_modification"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "playwrightGherkinStepNavigator.showStepCatalogue",
+          "when": "view == playwrightGherkinStepNavigator.stepCatalogue",
+          "group": "navigation"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "playwrightGherkinStepNavigator.stepCatalogue",
+        "contents": "Indexed Playwright test.step() calls and matching feature steps appear here after the workspace is indexed."
       }
     ]
   },
   "scripts": {
     "compile": "tsc -p ./",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "watch": "tsc -watch -p ./",
     "vscode:prepublish": "npm run compile",
     "package": "vsce package",
     "publish": "vsce publish"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.12.12",
     "@types/vscode": "^1.89.0",
     "@vscode/vsce": "^2.15.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
     "typescript": "^5.4.5"
   },
   "repository": {

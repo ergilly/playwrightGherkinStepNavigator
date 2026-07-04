@@ -1,0 +1,13 @@
+{
+  "name": "playwright-gherkin-step-navigator-sample-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Fixture workspace for manually testing the Playwright Gherkin Step Navigator extension.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0",
+    "typescript": "^5.4.5"
+  }
+}
